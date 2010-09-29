@@ -66,9 +66,13 @@ class ResourceSite(object):
                 Resource.__name__)
         del self._registry[key]
 
-    def get_urls(self):
+    def get_urls(self, prefix=None):
         urlpatterns = patterns('')
         for url_prefix, resource_class in self._registry.iteritems():
+            print url_prefix, " -> ", resource_class, " -> ", resource_class.urls
+            # Add the prefix if it is set
+            if prefix!=None:
+                url_prefix = '%s%s' % (prefix, url_prefix)
             # Add a carrot to the url_prefix if it doesn't already have one.
             if not url_prefix.startswith('^'):
                 url_prefix = '^%s' % url_prefix
@@ -78,7 +82,7 @@ class ResourceSite(object):
             )
         return urlpatterns
         
-    def urls(self):
+    def urls(self, prefix=None):
         return self.get_urls(), self.app_name, self.name
     urls = property(urls)
 

@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from djangocore.api.models.base import BaseModelResource
 from djangocore.serialization import emitter, EmittableResponse
 
+
 class DjangoModelResource(BaseModelResource):
     allow_related_ordering = False # Allow ordering across relationships.
     user_field_name = None # The field to filter on the current user.
@@ -116,7 +117,7 @@ class DjangoModelResource(BaseModelResource):
         
         # Make sure the data we recieved is in the right format.
         if not isinstance(data, dict):
-            return EmittbaleResponse("The data sent in the request was "
+            return EmittableResponse("The data sent in the request was "
                 "malformed", status=400)
         
         form = self.form(data)
@@ -136,7 +137,7 @@ class DjangoModelResource(BaseModelResource):
         # Make sure the data we recieved is in the right format.
         data = request.data                
         if not isinstance(data, dict):
-            return EmmitableResponse("The data sent in the request was "
+            return EmittableResponse("The data sent in the request was "
                 "malformed", status=400)
         
         instance = get_object_or_404(self.get_query_set(request), pk=pk)
