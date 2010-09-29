@@ -33,7 +33,7 @@ class BaseResource(object):
             options['gateways'] = gateways
         options['__module__'] = __name__
         Authenticator = type(auth_class.__name__, (auth_class,), options)
-        self._authenticator = Authenticator
+        BaseResource._authenticator = Authenticator
     
     def __init__(self, resource_site):
         self.resource_site = resource_site

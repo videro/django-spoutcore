@@ -52,7 +52,7 @@ class Mimer(object):
                   "registered" % ctype)
             self._registry[ctype] = mimer
         
-    def unregsiter(self, ctype_or_iterable):
+    def unregister(self, ctype_or_iterable):
         if isinstance(ctype_or_iterable, basestring):
             ctype_or_iterable = [ctype_or_iterable]
         for ctype in ctype_or_iterable:
@@ -120,7 +120,6 @@ class Mimer(object):
             # The data for PUT requests still resides in the POST variable,
             # since we tricked django into loading it as POST data.
             request.data = request.POST
-            
         # To reduce confusion, reset POST and PUT, since the data now resides
         # in the request.data variable.
         request.POST = {}
@@ -137,8 +136,8 @@ class Emitter(object):
               % format)
         self._registry[format] = (emitter, ctype)
         
-    def unregsiter(self, format):
-        if name not in self._registry:
+    def unregister(self, format):
+        if format not in self._registry:
             raise NotRegistered("The emitter for %s is not registered" % format)
         del self._registry[format]
     
@@ -175,7 +174,11 @@ class Emitter(object):
 mimer = Mimer()
 emitter = Emitter()
 
-mimer.register('application/json', lambda s: simplejson.loads(s))
+#add different json types as returned by browser-tests. mabye splitting at ';'
+#could make more sense
+#TODO: split the ctype, set to lowercase
+mimer.register(('application/json', 'application/json; charset=UTF-8',
+    'application/json; charset=utf-8'), lambda s: simplejson.loads(s))
 emitter.register('json', lambda s: simplejson.dumps(s,
     cls=DjangoJSONEncoder, ensure_ascii=False, indent=4),
     'application/json; charset=utf-8')
