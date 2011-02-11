@@ -106,7 +106,7 @@ class BaseResource(object):
             raise Http404
         
         handler = ops.get(request.method, None)
-        
+
         if not handler:
             # The request method isn't allowed for the given URL.
             return HttpResponseNotAllowed(ops.keys())
@@ -123,6 +123,7 @@ class BaseResource(object):
         response = handler(request)
 
         response = self.process_response(response, request)
+
         return response
 
 # TODO: Add in some way to catch errors...        

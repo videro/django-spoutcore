@@ -113,9 +113,15 @@ class DjangoModelTransformer(BaseModelTransformer):
     def get_default_transformation(self):
         return DjangoFieldTransformer
 
+    def get_exposed_instance_methods(self, model):
+        if hasattr(model, "exposedMethods"):
+            return [getattr(model, name) for name in model.exposedMethods]
+        else:
+            return []
+
     def get_forward_fields(self, model):
         ops = model._meta
-        return ops.fields + ops.many_to_many
+        return ops.fields + ops.many_to_many + self.get_exposed_instance_methods(model)
     
     def get_reverse_fields(self, model):
         ops = model._meta
@@ -176,6 +182,9 @@ transformer.register('DecimalField', 'Number', ('max_digits', 'decimal_places',)
 transformer.register('DateField', 'Date', ('auto_now', 'auto_now_add',))
 transformer.register('DateTimeField', 'Date', ('auto_now', 'auto_now_add',))
 transformer.register('TimeField', 'Date', ('auto_now', 'auto_now_add',))
+
+#Instance Methods
+transformer.register('instancemethod', None) #the datatype is set dynamically in the model depending on the function return value
 
 # Boolean fields
 transformer.register('NullBooleanField', 'Boolean')

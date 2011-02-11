@@ -85,7 +85,19 @@ class BaseFieldTransformer(object):
         return attributes_dict
             
     def get_field_data(self):
-        if self.should_render():
+        #if type(self.field)=="instancemethod":
+        if not hasattr(self.field, 'primary_key'):
+            return {
+                    'comments': self.field.sd_type+" "+self.field.sd_comment,
+                    'name': self.field.sd_name,
+                    'record': self.get_record(),
+                    'js_type': self.field.sd_type,
+                    'attributes': {
+                        'verbose_name': self.field.sd_verbose_name,
+                        'default': self.field.sd_default
+                        }
+                    }
+        elif self.should_render():
             return {
                 'comments': '\n\n'.join(self.get_comments()),
                 'name': self.get_name(),

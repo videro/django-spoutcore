@@ -69,7 +69,7 @@ class ResourceSite(object):
     def get_urls(self, prefix=None):
         urlpatterns = patterns('')
         for url_prefix, resource_class in self._registry.iteritems():
-            print url_prefix, " -> ", resource_class, " -> ", resource_class.urls
+            #print url_prefix, " -> ", resource_class, " -> ", resource_class.urls
             # Add the prefix if it is set
             if prefix!=None:
                 url_prefix = '%s%s' % (prefix, url_prefix)

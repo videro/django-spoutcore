@@ -4,18 +4,28 @@ from django.db.models.query import QuerySet
 from django.http import HttpResponse
 from django.forms.models import modelform_factory
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
+from query_translator import translator
 
 # Intra-app dependencies.
 from djangocore.api.models.base import BaseModelResource
 from djangocore.serialization import emitter, EmittableResponse
 
+from urllib import unquote_plus
+
 class DjangoModelResource(BaseModelResource):
     allow_related_ordering = False # Allow ordering across relationships.
     user_field_name = None # The field to filter on the current user.
                            # Only logged in users get filtered responses.
+
+    translator = None
     
     def __init__(self, *args, **kwargs):
         super(DjangoModelResource, self).__init__(*args, **kwargs)
+
+        """ create a translator object, so we have the regex' cached """
+        self.translator = translator()
+
         
         # Construct a default form if we don't have one already.
         if not self.form:
@@ -70,32 +80,69 @@ class DjangoModelResource(BaseModelResource):
         return qs.count()
 
     def list(self, request):
+        def iterable(obj):
+            """django nowadays plants all vars in lists. 
+            i.e.
+            <QueryDict: {u'ordering': [u'name'], u'limit': [u'0'], u'conditions': [u'ipPublic = {ipp} AND ipUmts = {ipu}'], u'parameters': [u'ipp=192.168.1.1,ipu=frank,'], u'offset': [u'0']}>
+            Thus, this function detects lists and returns the first object, if possible
+            """
+            if hasattr(obj, '__getitem__'):
+                if len(obj)>0:
+                    return obj[0]
+                else:
+                    return obj
+            else:
+                return obj
+
         lookups = request.GET.copy()
+
 
         qs = self.get_query_set(request)
 
-        ordering = lookups.pop('ordering', None)
+        ordering = iterable(lookups.pop('ordering', None))
         if ordering:
             if not self.allow_related_ordering and '__' in ordering:
                 return EmittableResponse("This model cannot be ordered by "
                     "related objects. Please remove all ocurrences of '__' from"
                     " your ordering parameters.", status=400)
-            
             ordering = ordering.split(',')            
             if len(ordering) > self.max_orderings:
                 return EmittableResponse("This model cannot be ordered by more "
                     "than %d parameter(s). You tried to order by %d parameters."
                     % (self.max_orderings, len(ordering)), status=400)
-            
             qs = qs.order_by(*ordering)
 
-        offset = lookups.pop('offset', 0)
-        limit = min(lookups.pop('limit', self.max_objects), self.max_objects)
+        offset = int(iterable(lookups.pop('offset', 0)))
+        limit = min(int(iterable(lookups.pop('limit', self.max_objects))), int(iterable(self.max_objects)))
+        
+        filter_q_object = None
+        """ check if we have conditions and request parameters """
+        conditions = iterable(lookups.pop('conditions', ""))
+        if conditions!="" and conditions!=None and conditions!=0:
+
+            """ check if we have parameters """
+            parameters = iterable(lookups.pop('parameters', ""))
+            if parameters=="" or parameters==None:
+                parameters = {}
+            else:
+                """ the parameter format is 'ipp=192.168.1.1,ipu=frank,'
+                we need to create dicts from that."""
+                parameters = dict([x.split("=") for x in parameters.split(",") if x.strip()!=""])
+
+            """parse the conditions """
+            conditionsString = unquote_plus(conditions);
+
+            """the format is a=b AND c=d OR """
+            """ and now create a Q object from the query string """
+            filter_q_object = self.translator.parse(conditionsString, parameters)
         
         try:
             # Catch any lookup errors, and return the message, since they are
             # usually quite descriptive.
-            qs = qs.filter(**self.process_lookups(lookups))
+            if filter_q_object:
+                qs = qs.filter(filter_q_object)
+            else:
+                qs = qs.filter(**self.process_lookups(lookups))
         except FieldError, err:
             return EmittableResponse(str(err), status=400)
         

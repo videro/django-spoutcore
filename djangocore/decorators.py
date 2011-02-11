@@ -3,6 +3,33 @@ from django.http import HttpResponseForbidden, HttpResponseBadRequest, \
   HttpResponseNotAllowed, HttpRequest
 from django.conf import settings
 
+
+
+# Create your models here.
+def exposeClass(func):
+  """
+    Class Method Decorator
+  """
+  func.attr = 'exposeClass'
+  return classmethod(func)
+
+def expose(**kwargs):
+    """
+        Instance Method Decorator. Rread-Only.
+        Example:
+        @expose(sd_type="Django.CharField", sd_default="", sd_verbose_name="UpperCaseName", sd_comment="Returns the name in uppercase")
+    """
+    def wrap(f):
+        def wrapped_f(*args):
+            f.attr = 'expose'
+            return f(*args)
+        for key in kwargs:
+            wrapped_f.__setattr__(key, kwargs.get(key))
+        wrapped_f.sd_name = f.func_name
+        return wrapped_f
+    return wrap
+
+
 def staff_member_required(func):
     """
     Makes sure the user requesting the page is a staff member.

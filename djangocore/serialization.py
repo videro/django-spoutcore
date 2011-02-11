@@ -94,7 +94,7 @@ class Mimer(object):
         ctype = self.content_type(request)
         request.content_type = ctype
         request.data = None
-        
+
         # For PUT requests we have to force django to load the request data.
         if request.method == "PUT":
             try:
@@ -167,7 +167,6 @@ class Emitter(object):
             # HttpResponse with the given options specified.
             response = deconstruct(response)
             return HttpResponse(emitter(response), **ops)
-        
         return HttpResponseBadRequest("Cannot to serialize response to '%s' "
             "format specified in request" % format)        
     
