@@ -5,6 +5,7 @@
 /** @private */
 {{ app_label }}.Generated{{ model_name }} = SC.Record.extend(
 /** {{ app_label }}.{{ model_name }}.prototype */ {
+nestedRecordNamespace: {{ app_label }},
 {% for field in generated_fields %}
 /**
 {{ field.comments }}

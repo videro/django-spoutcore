@@ -81,7 +81,11 @@ class DjangoRelationshipTransformer(DjangoFieldTransformer):
             attributes_dict = self.get_field_attrs_for(attributes)
             attributes_dict.update(
                 isMaster = False,
-                key = self.field.related.get_accessor_name(),
+                #remove the _set after the field to successfully create nested Elements
+                #key = self.field.related.get_accessor_name(),
+                key = self.field.related.opts.object_name.lower(),
+                #isNested - important for nestedRecords
+                isNested = True,
                 inverse = lcamelize(self.field.verbose_name) or \
                   lcamelize(self.field.name),
             )
@@ -107,7 +111,7 @@ class DjangoToManyTransformer(DjangoRelationshipTransformer):
     def get_acceptable_type(self):
         return 'SC.RecordArray %s' % self.get_related_obj()
     def get_record(self):
-        return 'SC.Record.toMany'
+        return 'SC.Record.toMany'    
 
 class DjangoModelTransformer(BaseModelTransformer):
     def get_default_transformation(self):
@@ -122,6 +126,9 @@ class DjangoModelTransformer(BaseModelTransformer):
     def get_forward_fields(self, model):
         ops = model._meta
         return ops.fields + ops.many_to_many + self.get_exposed_instance_methods(model)
+        
+    def get_nested_namespace(self, model):
+        return "nestedRecordNamespace: ProductDatabase,"
     
     def get_reverse_fields(self, model):
         ops = model._meta
@@ -148,6 +155,7 @@ class DjangoModelTransformer(BaseModelTransformer):
             value = getattr(ops, attr, None)
             if value is not None:
                 meta_dict[lcamelize(attr)] = value
+        
         
         return meta_dict
 
