@@ -6,6 +6,7 @@ from django.forms.models import modelform_factory
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from query_translator import translator
+from djangocore.api import site
 
 # Intra-app dependencies.
 from djangocore.api.models.base import BaseModelResource
@@ -26,7 +27,6 @@ class DjangoModelResource(BaseModelResource):
         """ create a translator object, so we have the regex' cached """
         self.translator = translator()
 
-        
         # Construct a default form if we don't have one already.
         if not self.form:
             if self.fields:
@@ -80,6 +80,7 @@ class DjangoModelResource(BaseModelResource):
         return qs.count()
 
     def list(self, request):
+        print 'list'
         def iterable(obj):
             """django nowadays plants all vars in lists. 
             i.e.
@@ -182,6 +183,26 @@ class DjangoModelResource(BaseModelResource):
                 
         # Make sure the data we recieved is in the right format.
         data = request.data
+
+        # bplutka
+        # if there are some sub-Arrays (nested Objects) save them as well
+        data_keys = data.keys()
+        for data_key in data_keys:
+            # do we have a list item? -> save separately
+            if type(data[data_key]).__name__=='list': 
+                if (len(data[data_key]) > 0):
+                    for datum in data[data_key]:
+                        ops = self.model._meta
+                        # generate the key for our nested Object - this has to be set in the Site-Registry
+                        key = 'models/%s/%s/' % (ops.app_label, datum['type'].lower())
+                        resource = site._registry[key]
+                        print datum['pk']
+                        instance = get_object_or_404(resource.get_query_set(request), pk=datum['pk'])
+                        form = resource.form(datum, instance=instance)
+                        if form.errors:
+                            return EmittableResponse({'errors': form.errors}, status=400)
+                        obj = form.save()
+
         if not isinstance(data, dict):
             return EmittableResponse("The data sent in the request was "
                 "malformed", status=400)
@@ -196,6 +217,7 @@ class DjangoModelResource(BaseModelResource):
         return self.serialize_models(obj)
 
     def destroy(self, request):
+        print 'destroy'
         pk_list = request.GET.getlist('pk')
         
         if len(pk_list) == 0:

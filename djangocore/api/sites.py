@@ -41,6 +41,7 @@ class ResourceSite(object):
     def register(self, resource_class, **options):
         # Dynamically construct a subclass of the given Resource with the specified
         # options.
+
         options['__module__'] = __name__
         Resource = type(resource_class.__name__, (resource_class,), options)
 

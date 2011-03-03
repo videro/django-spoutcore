@@ -19,7 +19,6 @@ def modelform_factory(model, form=ModelForm, fields=None, exclude=None,
     # Create the inner Meta class. FIXME: ideally, we should be able to
     # construct a ModelForm without creating and passing in a temporary
     # inner class.
-
     # Build up a list of attributes that the Meta object will have.
     attrs = {'model': model}
     if fields is not None:
@@ -130,7 +129,6 @@ class AppEngineModelResource(BaseModelResource):
     
     def list(self, request):
         lookups = request.GET.copy()
-
         qs = self.get_query_set(request)
 
         ordering = lookups.pop('ordering', None)
@@ -158,7 +156,6 @@ class AppEngineModelResource(BaseModelResource):
     
     def show(self, request):
         pk_list = request.GET.getlist('pk')
-        
         if len(pk_list) == 0:
             return EmittableResponse("The request must specify a pk argument",
                 status=400)
@@ -176,7 +173,6 @@ class AppEngineModelResource(BaseModelResource):
 
     def create(self, request):
         data = request.data
-        
         # Make sure the data we recieved is in the right format.
         if not isinstance(data, dict):
             return EmittbaleResponse("The data sent in the request was "

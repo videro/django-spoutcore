@@ -37,7 +37,6 @@ class BaseResource(object):
     
     def __init__(self, resource_site):
         self.resource_site = resource_site
-
         # Create a new Authenticator with all of the options specified in the
         # resource's inner Auth class.
         auth = getattr(self, '_authenticator', resource_site.authenticator)
@@ -106,7 +105,7 @@ class BaseResource(object):
             raise Http404
         
         handler = ops.get(request.method, None)
-
+        
         if not handler:
             # The request method isn't allowed for the given URL.
             return HttpResponseNotAllowed(ops.keys())
