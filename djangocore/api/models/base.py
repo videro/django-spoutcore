@@ -5,6 +5,7 @@ from django.conf.urls.defaults import patterns, url, include
 # Intra-app dependencies.
 from djangocore.api.resources import BaseResource
 from djangocore.transform.forms import transformer
+from product_database.models import *
 
 import inspect
 
@@ -83,10 +84,10 @@ class BaseModelResource(BaseResource):
         if self.fields:
             # Filter the model's fields, if the resource requires it.
             if len(exposedCalls)==0:
-                 s = serialize('python', model_or_iterable, fields=self.fields)
+                 s = serialize('json', model_or_iterable, fields=self.fields)
             else:
                 for d in model_or_iterable:
-                    sx = serialize('python', d, fields=self.fields)
+                    sx = serialize('json', d, fields=self.fields)
                     """ and add the custom method calls """
                     for name in exposedCalls:
                         if not sx.get("fields"): break
@@ -95,12 +96,42 @@ class BaseModelResource(BaseResource):
                     s.append(sx)
         else:
             if len(exposedCalls)==0:
-                s = serialize('python', model_or_iterable)
+                #s = serialize('json', model_or_iterable)
+                # find out all field_sets
+                sets = []
+                #for model in model_or_iterable:
+                    #print model
+                    #links = [rel.get_accessor_name() for rel in model._meta.get_all_related_objects()]
+                    #links2 = [rel2.get_accessor_name() for rel2 in model._meta.get_all_related_objects()]
+                    #for link in links2:
+                        #if link == 'price_set':
+                            #objs = getattr(model, link).all()
+                            #for obj in objs:
+                                #fields = obj._meta.fields
+                                #for field in fields:
+                                    #print field
+                        #objects = getattr(model, link).all()
+                        #for object in objects:
+                            #print object
+                            #if object.__class__.__name__ == 'Price':
+                                #links2 = [rel2.get_accessor_name() for rel2 in object._meta.get_all_related_objects()]
+                                #for link2 in links2:
+                                    #objects2 = getattr(object, link2).all()
+                                    #for object2 in objects2:
+                                        #print object2
+                                #print object._meta
+                for model in model_or_iterable:
+                    fields = model._meta.get_all_related_objects()
+                    for field in fields:
+                        accessor = field.get_accessor_name()
+                        if accessor not in sets:
+                            sets.append(accessor)                       
+                s = serialize('json', model_or_iterable, indent=4, relations=sets)
             else:
                 for d in model_or_iterable:
                     """ django can only serialize querysets... :-( """
                     try:
-                        sx = serialize('python', [d])[0]
+                        sx = serialize('json', [d])[0]
                     except:
                         continue
 
@@ -112,8 +143,8 @@ class BaseModelResource(BaseResource):
                     s.append(sx)
 
         # If we were given a single item, then we return a single item.
-        if iterable == False:
-            s = s[0]
+        #if iterable == False:
+            #s = s[0]
         return s
 
     def get_query_set(self, request):

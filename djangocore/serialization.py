@@ -166,7 +166,7 @@ class Emitter(object):
             # Deconstruct the response, serializer it, and then create a new
             # HttpResponse with the given options specified.
             response = deconstruct(response)
-            return HttpResponse(emitter(response), **ops)
+            return HttpResponse((response), **ops)
         return HttpResponseBadRequest("Cannot to serialize response to '%s' "
             "format specified in request" % format)        
     

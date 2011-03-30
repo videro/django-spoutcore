@@ -71,7 +71,7 @@ class DjangoRelationshipTransformer(DjangoFieldTransformer):
         if self.reverse:
             # Get the camlized related_name for the field, since there is no
             # field name to use from the reverse side of the relationship.
-            return lcamelize(self.field.related.get_accessor_name())
+            return self.field.related.get_accessor_name()
         
         return super(DjangoRelationshipTransformer, self).get_name()
         
@@ -82,10 +82,11 @@ class DjangoRelationshipTransformer(DjangoFieldTransformer):
             attributes_dict.update(
                 isMaster = False,
                 #remove the _set after the field to successfully create nested Elements
-                #key = self.field.related.get_accessor_name(),
-                key = self.field.related.opts.object_name.lower(),
+                key = self.field.related.get_accessor_name(),
+                #key = self.field.related.opts.object_name.lower(),
                 #isNested - important for nestedRecords
                 isNested = True,
+                nested = True,
                 inverse = lcamelize(self.field.verbose_name) or \
                   lcamelize(self.field.name),
             )

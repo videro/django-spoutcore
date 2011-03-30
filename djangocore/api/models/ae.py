@@ -77,6 +77,7 @@ class AppEngineModelResource(BaseModelResource):
         
         if isinstance(response, Query):
             response = self.serialize_models(response)
+        
 
         # TODO: how do we catch bad format requests?
         format = request.GET.get('format', 'json')

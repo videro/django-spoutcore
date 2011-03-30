@@ -8,6 +8,8 @@ from django.db.models import Q
 from query_translator import translator
 from djangocore.api import site
 
+import simplejson
+
 # Intra-app dependencies.
 from djangocore.api.models.base import BaseModelResource
 from djangocore.serialization import emitter, EmittableResponse
@@ -45,7 +47,6 @@ class DjangoModelResource(BaseModelResource):
         
         if isinstance(response, QuerySet):
             response = self.serialize_models(response)
-        
         # TODO: how do we catch bad format requests?
         format = request.GET.get('format', 'json')
         response = emitter.translate(format, response)
@@ -60,7 +61,8 @@ class DjangoModelResource(BaseModelResource):
         return dict([(str(k), v) for k, v in lookups.items()])
 
     def get_query_set(self, request):
-        qs = self.model._default_manager.all()
+        qs = self.model._default_manager.select_related().all()
+
         if self.user_field_name and hasattr(request.user, 'pk'):
             lookups = {}
             lookups[self.user_field_name] = request.user
@@ -96,7 +98,6 @@ class DjangoModelResource(BaseModelResource):
                 return obj
 
         lookups = request.GET.copy()
-
 
         qs = self.get_query_set(request)
 
@@ -146,7 +147,7 @@ class DjangoModelResource(BaseModelResource):
                 qs = qs.filter(**self.process_lookups(lookups))
         except FieldError, err:
             return EmittableResponse(str(err), status=400)
-        
+
         return qs[offset:offset + limit]
 
     def show(self, request):
@@ -161,19 +162,30 @@ class DjangoModelResource(BaseModelResource):
 
     def create(self, request):
         data = request.data
-        
+
+        print data
+
         # Make sure the data we recieved is in the right format.
         if not isinstance(data, dict):
             return EmittableResponse("The data sent in the request was "
                 "malformed", status=400)
         
         form = self.form(data)
+        print form
         if form.errors:
             return EmittableResponse({'errors': form.errors}, status=400)
             
         obj = form.save()
-        return self.serialize_models(obj)
 
+        # after Creation of the parent - create SubObjects
+        data_keys = data.keys()
+        for data_key in data_keys:
+            # do we have a list item? -> save separately
+            if type(data[data_key]).__name__=='list': 
+                self.createNested(obj.__class__.__name__.lower(), obj.pk, data[data_key], request)
+
+        return self.serialize_models(obj)
+    
     def update(self, request):
         pk_list = request.GET.getlist('pk')
         if len(pk_list) != 1:
@@ -183,30 +195,19 @@ class DjangoModelResource(BaseModelResource):
                 
         # Make sure the data we recieved is in the right format.
         data = request.data
+        
+        if not isinstance(data, dict):
+            return EmittableResponse("The data sent in the request was "
+                "malformed", status=400)
 
         # bplutka
-        # if there are some sub-Arrays (nested Objects) save them as well
+        # if there are some sub-Arrays (nested Objects) save them as well (recursively)
         data_keys = data.keys()
         for data_key in data_keys:
             # do we have a list item? -> save separately
             if type(data[data_key]).__name__=='list': 
-                if (len(data[data_key]) > 0):
-                    for datum in data[data_key]:
-                        ops = self.model._meta
-                        # generate the key for our nested Object - this has to be set in the Site-Registry
-                        key = 'models/%s/%s/' % (ops.app_label, datum['type'].lower())
-                        resource = site._registry[key]
-                        print datum['pk']
-                        instance = get_object_or_404(resource.get_query_set(request), pk=datum['pk'])
-                        form = resource.form(datum, instance=instance)
-                        if form.errors:
-                            return EmittableResponse({'errors': form.errors}, status=400)
-                        obj = form.save()
+                self.updateNested(data[data_key], request, pk)
 
-        if not isinstance(data, dict):
-            return EmittableResponse("The data sent in the request was "
-                "malformed", status=400)
-        
         instance = get_object_or_404(self.get_query_set(request), pk=pk)
 
         form = self.form(data, instance=instance)
@@ -214,7 +215,80 @@ class DjangoModelResource(BaseModelResource):
             return EmittableResponse({'errors': form.errors}, status=400)
             
         obj = form.save()
+
         return self.serialize_models(obj)
+
+
+    def createNested(self, parentkey, pk, data, request):
+        #data_keys = data.keys()
+        #for data_key in data_keys:
+            # do we have a list item? -> save separately
+            #if type(data[data_key]).__name__=='list': 
+        #print len(data)
+        #print data
+        if (len(data) > 0):
+            for datum in data:
+                print "1"
+                print datum
+                print "2"
+                datum[parentkey] = pk
+                for sub_key, value in datum.items():
+                    # delete the Primary-Key from Sproutcore!!!
+                    if sub_key == 'pk':
+                        del datum[sub_key]
+                ops = self.model._meta
+
+                # generate the key for our nested Object - this has to be set in the Site-Registry
+                pathList = datum['type'].lower().split('.')
+                key = 'models/%s/%s/' % (ops.app_label, pathList[1])
+                
+                resource = site._registry[key]
+                form = resource.form(datum)
+                if form.errors:
+                    return EmittableResponse({'errors': form.errors}, status=400)
+                obj = form.save()
+                #for sub_key, value in datum.items():
+                    #if type(datum[sub_key]).__name__=='list': 
+                        #self.createNested(pathList[1], obj.pk, datum[sub_key], request)
+
+    def updateNested(self, data, request, pk):
+        #data_keys = data.keys()
+        #for data_key in data_keys:
+            # do we have a list item? -> save separately
+            #if type(data[data_key]).__name__=='list': 
+        nestedData = list()
+        if (len(data) > 0):
+            for datum in data:
+                create = False
+                pkFound = False
+                for sub_key, value in datum.items():
+                    # delete the Primary-Key from Sproutcore!!!
+                    if sub_key == 'pk':
+                        pkFound = True
+                        # do we have a sproutcore pk? (eg. cr45)
+                        if str(datum[sub_key]).find('cr') > -1:
+                            del datum[sub_key]
+                            create = True
+                if not pkFound:
+                    create = True
+                pathList = datum['type'].lower().split('.')
+                if create:
+                    nestedData.append(datum)            
+                else:
+                    ops = self.model._meta
+                
+                    # generate the key for our nested Object - this has to be set in the Site-Registry
+                    key = 'models/%s/%s/' % (ops.app_label, pathList[1])
+                    resource = site._registry[key]
+                    instance = get_object_or_404(resource.get_query_set(request), pk=datum['pk'])
+                    form = resource.form(datum, instance=instance)
+                    if form.errors:
+                        return EmittableResponse({'errors': form.errors}, status=400)
+                    obj = form.save()
+                    for sub_key in datum:
+                        if type(datum[sub_key]).__name__=='list': 
+                            self.updateNested(datum[sub_key], request, obj.pk)
+        self.createNested(pathList[1], pk, nestedData, request)
 
     def destroy(self, request):
         print 'destroy'
@@ -225,10 +299,10 @@ class DjangoModelResource(BaseModelResource):
                 status=400)
         
         qs = self.get_query_set(request)
-        
         # QUESTION: Should we delete in bulk or loop through and delete?
-        qs.filter(pk__in=pk_list).delete()
         
+        qs.filter(pk__in=pk_list).delete()
+
         return HttpResponse('', status=204)    
 
 # Alias to make importing easier, while retaining the class's full name.
