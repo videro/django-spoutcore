@@ -80,6 +80,9 @@ class DjangoModelResource(BaseModelResource):
             return EmittableResponse(str(err), status=400)
         
         return qs.count()
+    
+    def fileupload(self, request):
+        print request
 
     def list(self, request):
         print 'list'
@@ -130,14 +133,14 @@ class DjangoModelResource(BaseModelResource):
                 """ the parameter format is 'ipp=192.168.1.1,ipu=frank,'
                 we need to create dicts from that."""
                 parameters = dict([x.split("=") for x in parameters.split(",") if x.strip()!=""])
-
+            
             """parse the conditions """
             conditionsString = unquote_plus(conditions);
 
             """the format is a=b AND c=d OR """
             """ and now create a Q object from the query string """
             filter_q_object = self.translator.parse(conditionsString, parameters)
-        
+            print filter_q_object
         try:
             # Catch any lookup errors, and return the message, since they are
             # usually quite descriptive.

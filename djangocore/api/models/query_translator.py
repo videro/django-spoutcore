@@ -80,15 +80,16 @@ class translator(object):
   """
   
   django_operators = {
-    "begins_with":"startswith", #or istartswith
-    "ends_with": "endswith", #or iendswith
-    "not begins_with":"~startswith", #or istartswith
-    "not ends_with": "~endswith", #or iendswith
-    "contains": "contains", #or contains, if the right parm is a string, not a collection
-    "not contains": "~contains",
-    "matches": "regex", #or iregex
-    "any": "in",
-    "not any": "~in",
+    "BEGINS_WITH":"startswith", #or istartswith
+    "ENDS_WITH": "endswith", #or iendswith
+    "NOT BEGINS_WITH":"~startswith", #or istartswith
+    "NOT ENDS_WITH": "~endswith", #or iendswith
+    "CONTAINS": "contains", #or contains, if the right parm is a string, not a collection
+    "ICONTAINS": "icontains", #or contains, if the right parm is a string, not a collection
+    "NOT CONTAINS": "~contains",
+    "MATCHES": "regex", #or iregex
+    "ANY": "in",
+    "NOT ANY": "~in",
     "=": "exact", #or iexact
     "!=": "~exact", #special.
     "<": "lt",
@@ -96,8 +97,8 @@ class translator(object):
     ">=": "gte",
     "<=": "lte",
     "in": "in",
-    "not in": "~in",
-    "not": "not"
+    "NOT IN": "~in",
+    "NOT": "not"
   }
   
   stack = []
