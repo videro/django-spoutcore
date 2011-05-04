@@ -291,7 +291,7 @@ class DjangoModelResource(BaseModelResource):
                     for sub_key in datum:
                         if type(datum[sub_key]).__name__=='list': 
                             self.updateNested(datum[sub_key], request, obj.pk)
-        self.createNested(pathList[1], pk, nestedData, request)
+            self.createNested(pathList[1], pk, nestedData, request)
 
     def destroy(self, request):
         print 'destroy'
