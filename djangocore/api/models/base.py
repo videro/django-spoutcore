@@ -10,8 +10,8 @@ from product_database.models import *
 import inspect
 
 class BaseModelResource(BaseResource):
-    max_orderings = 1 # max number of order parameters for a query
-    max_objects = 500 # max number of objects returned by a query
+    max_orderings = 5 # max number of order parameters for a query
+    max_objects = 10000000 # max number of objects returned by a query
     
     model = None
     form = None # a model form class to use when creating and updating objects
