@@ -10,8 +10,8 @@ from product_database.models import *
 import inspect
 
 class BaseModelResource(BaseResource):
-    max_orderings = 5 # max number of order parameters for a query
-    max_objects = 10000000 # max number of objects returned by a query
+    max_orderings = 1 # max number of order parameters for a query
+    max_objects = 500 # max number of objects returned by a query
     
     model = None
     form = None # a model form class to use when creating and updating objects
@@ -39,7 +39,6 @@ class BaseModelResource(BaseResource):
             if (inspect.ismethod(obj) or inspect.isfunction(obj)):
               if obj.func_dict.get("attr")=="exposeClass":
                   urlpatterns+=patterns('', url('^'+name+"/", self.mapper, {'GET': obj}),)
-        #print urlpatterns
         return urlpatterns
 
     def get_url_prefix(self):
@@ -120,12 +119,14 @@ class BaseModelResource(BaseResource):
                                     #for object2 in objects2:
                                         #print object2
                                 #print object._meta
+                
                 for model in model_or_iterable:
-                    fields = model._meta.get_all_related_objects()
-                    for field in fields:
-                        accessor = field.get_accessor_name()
-                        if accessor not in sets:
-                            sets.append(accessor)                       
+                    if (model.__class__.__name__ != 'Materialgroup' and model.__class__.__name__ != 'Price' and model.__class__.__name__ != 'Currency'):
+                        fields = model._meta.get_all_related_objects()
+                        for field in fields:
+                            accessor = field.get_accessor_name()
+                            if accessor not in sets:
+                                sets.append(accessor)                       
                 s = serialize('json', model_or_iterable, indent=4, relations=sets)
             else:
                 for d in model_or_iterable:

@@ -71,11 +71,48 @@ class DjangoModelResource(BaseModelResource):
 
     def length(self, request):
         lookups = request.GET.copy()
+        def iterable(obj):
+            """django nowadays plants all vars in lists. 
+            i.e.
+            <QueryDict: {u'ordering': [u'name'], u'limit': [u'0'], u'conditions': [u'ipPublic = {ipp} AND ipUmts = {ipu}'], u'parameters': [u'ipp=192.168.1.1,ipu=frank,'], u'offset': [u'0']}>
+            Thus, this function detects lists and returns the first object, if possible
+            """
+            if hasattr(obj, '__getitem__'):
+                if len(obj)>0:
+                    return obj[0]
+                else:
+                    return obj
+            else:
+                return obj
 
         qs = self.get_query_set(request)
         
+        conditions = iterable(lookups.pop('conditions', ""))
+        filter_q_object = None
+        if conditions!="" and conditions!=None and conditions!=0:
+
+            """ check if we have parameters """
+            parameters = iterable(lookups.pop('parameters', ""))
+            if parameters=="" or parameters==None:
+                parameters = {}
+            else:
+                """ the parameter format is 'ipp=192.168.1.1,ipu=frank,'
+                we need to create dicts from that."""
+                parameters = dict([x.split("=") for x in parameters.split(",") if x.strip()!=""])
+            
+            """parse the conditions """
+            conditionsString = unquote_plus(conditions);
+
+            """the format is a=b AND c=d OR """
+            """ and now create a Q object from the query string """
+            filter_q_object = self.translator.parse(conditionsString, parameters)
         try:
-            qs = qs.filter(**self.process_lookups(lookups))
+            # Catch any lookup errors, and return the message, since they are
+            # usually quite descriptive.
+            if filter_q_object != None:
+                qs = qs.filter(filter_q_object)
+            else:
+                qs = qs.filter(**self.process_lookups(lookups))
         except FieldError, err:
             return EmittableResponse(str(err), status=400)
         
@@ -140,7 +177,6 @@ class DjangoModelResource(BaseModelResource):
             """the format is a=b AND c=d OR """
             """ and now create a Q object from the query string """
             filter_q_object = self.translator.parse(conditionsString, parameters)
-            print filter_q_object
         try:
             # Catch any lookup errors, and return the message, since they are
             # usually quite descriptive.
@@ -276,18 +312,27 @@ class DjangoModelResource(BaseModelResource):
                     create = True
                 pathList = datum['type'].lower().split('.')
                 if create:
-                    nestedData.append(datum)            
+                    nestedData.append(datum)  
+                    print 'nestedData'
+                    print nestedData          
                 else:
+
                     ops = self.model._meta
                 
                     # generate the key for our nested Object - this has to be set in the Site-Registry
                     key = 'models/%s/%s/' % (ops.app_label, pathList[1])
+
                     resource = site._registry[key]
                     instance = get_object_or_404(resource.get_query_set(request), pk=datum['pk'])
+
                     form = resource.form(datum, instance=instance)
                     if form.errors:
+                        print "datum"
+                        print form.errors 
                         return EmittableResponse({'errors': form.errors}, status=400)
+                    
                     obj = form.save()
+                    print obj
                     for sub_key in datum:
                         if type(datum[sub_key]).__name__=='list': 
                             self.updateNested(datum[sub_key], request, obj.pk)
