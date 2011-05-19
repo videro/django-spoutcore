@@ -122,7 +122,6 @@ class DjangoModelResource(BaseModelResource):
         print request
 
     def list(self, request):
-        print 'list'
         def iterable(obj):
             """django nowadays plants all vars in lists. 
             i.e.
@@ -202,7 +201,6 @@ class DjangoModelResource(BaseModelResource):
     def create(self, request):
         data = request.data
 
-        print data
 
         # Make sure the data we recieved is in the right format.
         if not isinstance(data, dict):
@@ -210,7 +208,6 @@ class DjangoModelResource(BaseModelResource):
                 "malformed", status=400)
         
         form = self.form(data)
-        print form
         if form.errors:
             return EmittableResponse({'errors': form.errors}, status=400)
             
@@ -235,6 +232,9 @@ class DjangoModelResource(BaseModelResource):
         # Make sure the data we recieved is in the right format.
         data = request.data
         
+        #pathList = data['type'].lower().split('.')
+        instance = get_object_or_404(self.get_query_set(request), pk=pk)
+
         if not isinstance(data, dict):
             return EmittableResponse("The data sent in the request was "
                 "malformed", status=400)
@@ -245,9 +245,9 @@ class DjangoModelResource(BaseModelResource):
         for data_key in data_keys:
             # do we have a list item? -> save separately
             if type(data[data_key]).__name__=='list': 
-                self.updateNested(data[data_key], request, pk)
+                self.updateNested(data[data_key], request, instance.__class__.__name__.lower(), pk)
 
-        instance = get_object_or_404(self.get_query_set(request), pk=pk)
+        
 
         form = self.form(data, instance=instance)
         if form.errors:
@@ -263,14 +263,12 @@ class DjangoModelResource(BaseModelResource):
         #for data_key in data_keys:
             # do we have a list item? -> save separately
             #if type(data[data_key]).__name__=='list': 
-        #print len(data)
-        #print data
         if (len(data) > 0):
+
             for datum in data:
-                print "1"
-                print datum
-                print "2"
                 datum[parentkey] = pk
+                print parentkey
+                print datum[parentkey]
                 for sub_key, value in datum.items():
                     # delete the Primary-Key from Sproutcore!!!
                     if sub_key == 'pk':
@@ -283,6 +281,7 @@ class DjangoModelResource(BaseModelResource):
                 
                 resource = site._registry[key]
                 form = resource.form(datum)
+
                 if form.errors:
                     return EmittableResponse({'errors': form.errors}, status=400)
                 obj = form.save()
@@ -290,7 +289,7 @@ class DjangoModelResource(BaseModelResource):
                     #if type(datum[sub_key]).__name__=='list': 
                         #self.createNested(pathList[1], obj.pk, datum[sub_key], request)
 
-    def updateNested(self, data, request, pk):
+    def updateNested(self, data, request, parentkey, pk):
         #data_keys = data.keys()
         #for data_key in data_keys:
             # do we have a list item? -> save separately
@@ -311,10 +310,9 @@ class DjangoModelResource(BaseModelResource):
                 if not pkFound:
                     create = True
                 pathList = datum['type'].lower().split('.')
+                print pathList
                 if create:
-                    nestedData.append(datum)  
-                    print 'nestedData'
-                    print nestedData          
+                    nestedData.append(datum)         
                 else:
 
                     ops = self.model._meta
@@ -327,19 +325,16 @@ class DjangoModelResource(BaseModelResource):
 
                     form = resource.form(datum, instance=instance)
                     if form.errors:
-                        print "datum"
-                        print form.errors 
                         return EmittableResponse({'errors': form.errors}, status=400)
                     
                     obj = form.save()
-                    print obj
                     for sub_key in datum:
                         if type(datum[sub_key]).__name__=='list': 
-                            self.updateNested(datum[sub_key], request, obj.pk)
-            self.createNested(pathList[1], pk, nestedData, request)
+                            self.updateNested(datum[sub_key], request, pathList[1], obj.pk)
+           
+            self.createNested(parentkey, pk, nestedData, request)
 
     def destroy(self, request):
-        print 'destroy'
         pk_list = request.GET.getlist('pk')
         
         if len(pk_list) == 0:
