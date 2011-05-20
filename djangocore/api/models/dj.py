@@ -71,6 +71,7 @@ class DjangoModelResource(BaseModelResource):
 
     def length(self, request):
         lookups = request.GET.copy()
+                        
         def iterable(obj):
             """django nowadays plants all vars in lists. 
             i.e.
@@ -86,7 +87,10 @@ class DjangoModelResource(BaseModelResource):
                 return obj
 
         qs = self.get_query_set(request)
-        
+
+        # just to remove the relations from the lookups array, TODO: rebuild this strange format
+        relations = iterable(lookups.pop('relations', ""))
+                
         conditions = iterable(lookups.pop('conditions', ""))
         filter_q_object = None
         if conditions!="" and conditions!=None and conditions!=0:
@@ -122,6 +126,8 @@ class DjangoModelResource(BaseModelResource):
         print request
 
     def list(self, request):
+        lookups = request.GET.copy()
+        
         def iterable(obj):
             """django nowadays plants all vars in lists. 
             i.e.
@@ -135,11 +141,12 @@ class DjangoModelResource(BaseModelResource):
                     return obj
             else:
                 return obj
-
-        lookups = request.GET.copy()
-
+        
         qs = self.get_query_set(request)
 
+        # just to remove the relations from the lookups array, TODO: rebuild this strange format
+        relations = iterable(lookups.pop('relations', ""))
+        
         ordering = iterable(lookups.pop('ordering', None))
         if ordering:
             if not self.allow_related_ordering and '__' in ordering:
@@ -155,10 +162,7 @@ class DjangoModelResource(BaseModelResource):
 
         offset = int(iterable(lookups.pop('offset', 0)))
         limit = min(int(iterable(lookups.pop('limit', self.max_objects))), int(iterable(self.max_objects)))
-        
-        # just to remove the relations from the lookups array, TODO: rebuild this strange format
-        relations = iterable(lookups.pop('relations', ""))
-        
+                
         filter_q_object = None
         """ check if we have conditions and request parameters """
         conditions = iterable(lookups.pop('conditions', ""))

@@ -162,15 +162,15 @@ class BaseModelResource(BaseResource):
                 relations = {'actionproduct_set':{'fields':('product',)}}
                 relations = {'actionproduct_set':{'fields':['product','action']}}
                 relations = {'actionproduct_set':{'relations':['product','action']}}
-                relations = {"template":{},"actionproduct_set":{"relations":["product","action"]}}                
+                relations = {"template":{},"actionproduct_set":{"relations":["product","action"]}}
                 '''
                 
                 if req.has_key('relations'):
-                    org_rel = json.loads(req['relations'])
+                    relations = {}                
+                    if req['relations'] != "":                    
+                        org_rel = json.loads(req['relations'])                    
+                        self.dict_keys_to_str(relations,org_rel)
                     
-                    relations = {}
-                    
-                    self.dict_keys_to_str(relations,org_rel)
                     print relations.__class__
                     print relations
                            
