@@ -46,7 +46,7 @@ class DjangoModelResource(BaseModelResource):
             return response
         
         if isinstance(response, QuerySet):
-            response = self.serialize_models(response)
+            response = self.serialize_models(response, request)
         # TODO: how do we catch bad format requests?
         format = request.GET.get('format', 'json')
         response = emitter.translate(format, response)
@@ -156,6 +156,9 @@ class DjangoModelResource(BaseModelResource):
         offset = int(iterable(lookups.pop('offset', 0)))
         limit = min(int(iterable(lookups.pop('limit', self.max_objects))), int(iterable(self.max_objects)))
         
+        # just to remove the relations from the lookups array, TODO: rebuild this strange format
+        relations = iterable(lookups.pop('relations', ""))
+        
         filter_q_object = None
         """ check if we have conditions and request parameters """
         conditions = iterable(lookups.pop('conditions', ""))
@@ -220,7 +223,7 @@ class DjangoModelResource(BaseModelResource):
             if type(data[data_key]).__name__=='list': 
                 self.createNested(obj.__class__.__name__.lower(), obj.pk, data[data_key], request)
 
-        return self.serialize_models(obj)
+        return self.serialize_models(obj, request)
     
     def update(self, request):
         pk_list = request.GET.getlist('pk')
@@ -255,7 +258,7 @@ class DjangoModelResource(BaseModelResource):
             
         obj = form.save()
 
-        return self.serialize_models(obj)
+        return self.serialize_models(obj, request)
 
 
     def createNested(self, parentkey, pk, data, request):

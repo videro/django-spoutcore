@@ -7,7 +7,9 @@ from djangocore.api.resources import BaseResource
 from djangocore.transform.forms import transformer
 from product_database.models import *
 
+import django.db.models as djmodels
 import inspect
+import json
 
 class BaseModelResource(BaseResource):
     max_orderings = 1 # max number of order parameters for a query
@@ -45,12 +47,14 @@ class BaseModelResource(BaseResource):
         ops = self.model._meta
         return 'models/%s/%s/' % (ops.app_label, ops.module_name)
 
-    def serialize_models(self, model_or_iterable):
+    def serialize_models(self, model_or_iterable, request):
+        req = request.GET.copy()
+        #print req
         """
         Convert a model (or list of models) into standard python types
         for later serialization.
-        
         """
+        
         iterable = True
         if not hasattr(model_or_iterable, '__iter__'):
             model_or_iterable = [model_or_iterable]
@@ -97,29 +101,8 @@ class BaseModelResource(BaseResource):
             if len(exposedCalls)==0:
                 #s = serialize('json', model_or_iterable)
                 # find out all field_sets
-                sets = []
-                #for model in model_or_iterable:
-                    #print model
-                    #links = [rel.get_accessor_name() for rel in model._meta.get_all_related_objects()]
-                    #links2 = [rel2.get_accessor_name() for rel2 in model._meta.get_all_related_objects()]
-                    #for link in links2:
-                        #if link == 'price_set':
-                            #objs = getattr(model, link).all()
-                            #for obj in objs:
-                                #fields = obj._meta.fields
-                                #for field in fields:
-                                    #print field
-                        #objects = getattr(model, link).all()
-                        #for object in objects:
-                            #print object
-                            #if object.__class__.__name__ == 'Price':
-                                #links2 = [rel2.get_accessor_name() for rel2 in object._meta.get_all_related_objects()]
-                                #for link2 in links2:
-                                    #objects2 = getattr(object, link2).all()
-                                    #for object2 in objects2:
-                                        #print object2
-                                #print object._meta
-                
+                '''
+                #sets = []                
                 for model in model_or_iterable:
                     if (model.__class__.__name__ != 'Materialgroup' and model.__class__.__name__ != 'Price' and model.__class__.__name__ != 'Currency'):
                         fields = model._meta.get_all_related_objects()
@@ -128,6 +111,72 @@ class BaseModelResource(BaseResource):
                             if accessor not in sets:
                                 sets.append(accessor)                       
                 s = serialize('json', model_or_iterable, indent=4, relations=sets)
+                '''
+                
+                '''
+                relations = []
+                # follow foreign keys
+                fields = model._meta.fields
+                for field in fields:
+                    print type(field)
+                    if (type(field)==djmodels.fields.related.ForeignKey):
+                        accessor = field.name
+                        print accessor
+                        if accessor not in relations:
+                            relations.append(accessor)
+                
+                # follow many to many relation // does not work with through
+                fields = model._meta.many_to_many
+                for field in fields:
+                    if (type(field)==djmodels.fields.related.ManyToManyField):
+                        accessor = field.get_attname()
+                        print accessor
+                        if accessor not in relations:
+                            relations.append(accessor)
+                
+                # follow reverse foreign keys
+                fields = model._meta.get_all_related_objects()
+                for field in fields:
+                    print field                    
+                    accessor = field.get_accessor_name()
+                    print accessor
+                    if accessor not in relations:
+                        relations.append(accessor)
+                        
+                # follow reverse foreign keys // does it work?
+                fields = model._meta.get_all_related_many_to_many_objects()
+                for field in fields:
+                    print field                    
+                    accessor = field.get_accessor_name()
+                    print accessor
+                    if accessor not in relations:
+                        relations.append(accessor)
+                '''
+
+                '''                
+                relations = ('template')
+                relations = ('products')
+                relations = ('actionproduct_set','template')
+                relations = {'actionproduct_set':{}}
+                relations = ['actionproduct_set']
+                relations = {'actionproduct_set':{'fields':('product',)}}
+                relations = {'actionproduct_set':{'fields':['product','action']}}
+                relations = {'actionproduct_set':{'relations':['product','action']}}
+                relations = {"template":{},"actionproduct_set":{"relations":["product","action"]}}                
+                '''
+                
+                if req.has_key('relations'):
+                    org_rel = json.loads(req['relations'])
+                    
+                    relations = {}
+                    
+                    self.dict_keys_to_str(relations,org_rel)
+                    print relations.__class__
+                    print relations
+                           
+                    s = serialize('json', model_or_iterable, indent=4, relations=relations)
+                else:
+                    s = serialize('json', model_or_iterable, indent=4)
             else:
                 for d in model_or_iterable:
                     """ django can only serialize querysets... :-( """
@@ -147,7 +196,28 @@ class BaseModelResource(BaseResource):
         #if iterable == False:
             #s = s[0]
         return s
-
+    
+    def dict_keys_to_str(self,new_dict,org_dict):
+        for key in org_dict.keys():
+            new_key = str(key)
+            org_val = org_dict[key]
+            if type(org_val) == type({}):
+                new_val = {}
+                self.dict_keys_to_str(new_val,org_val)
+                new_dict[new_key] = new_val
+            else:
+                new_dict[new_key] = org_dict[key]
+            
+        
+    
+    def process_lookups(self, lookups):
+        """
+        GET parameter keys are unicode strings, but we can only pass in
+        strings as keyword arguments, so we convert them here.
+        
+        """
+        return dict([(str(k), v) for k, v in lookups.items()])
+                
     def get_query_set(self, request):
         return self.model._default_manager.all()
     
